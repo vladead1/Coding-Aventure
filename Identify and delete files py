@@ -1,0 +1,81 @@
+import os
+from tqdm import tqdm
+import openpyxl
+from datetime import datetime
+
+# Function to get user input with a provided message
+def get_user_input(message, default=""):
+    user_input = input(message).strip()
+    if not user_input:
+        return default
+    return user_input
+
+# Function to search for files containing specified keywords in a directory
+def search_files(directory, keywords, selected_extensions, min_file_size):
+    result = []
+    for root, _, files in os.walk(directory):
+        for file in tqdm(files, desc="Searching files"):
+            file_path = os.path.join(root, file)
+            file_name, file_ext = os.path.splitext(file)
+            file_size = os.path.getsize(file_path)
+            for keyword in keywords:
+                if keyword in file_name and (not selected_extensions or file_ext.lower() in selected_extensions) and (not min_file_size or file_size >= min_file_size):
+                    result.append(file_path)
+                    break
+    return result
+
+# Function to create an Excel file with the list of found files
+def create_excel_file(file_list):
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    default_excel_name = f"found_files_list_{timestamp}.xlsx"
+    excel_file_name = get_user_input(
+        "Enter the path and name of the Excel file (or press Enter for the default name): ", default=default_excel_name)
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Found Files"
+    sheet["A1"] = "File Path"
+    for idx, file_path in enumerate(file_list, start=2):
+        sheet.cell(row=idx, column=1, value=file_path)
+    workbook.save(excel_file_name)
+    print(f"The Excel file with the list of found files has been created: {excel_file_name}")
+
+if __name__ == "__main__":
+    search_directory = get_user_input("Enter the directory to search for files: ")
+    keyword_input = get_user_input("Enter keywords separated by spaces: ")
+
+    keywords = keyword_input.split()
+
+    print(f"Searching files in the directory: {search_directory}")
+
+    # Set default values for file extension and minimum file size
+    file_extension = get_user_input("Enter file extension (or press Enter for all files): ")
+    if not file_extension:
+        file_extension = ""
+
+    min_file_size_input = get_user_input("Enter the minimum file size in bytes (or press Enter for no minimum size): ")
+    try:
+        min_file_size = int(min_file_size_input)
+    except (ValueError, TypeError):
+        min_file_size = 0
+
+    found_files = search_files(search_directory, keywords, file_extension, min_file_size)
+
+    if found_files:
+        print("Found files:")
+        for file_path in found_files:
+            print(file_path)
+
+        save_to_excel_option = get_user_input("Do you want to save the list of files to an Excel file? (yes/no): ")
+        if save_to_excel_option.lower() in ('yes', 'y'):
+            create_excel_file(found_files)
+
+        delete_option = get_user_input("Do you want to delete these files? (yes/no): ")
+        if delete_option.lower() in ('yes', 'y'):
+            for file_path in found_files:
+                os.remove(file_path)
+                print(f"File deleted: {file_path}")
+            print("Files have been deleted.")
+        else:
+            print("Deletion canceled.")
+    else:
+        print("No files with the specified keywords were found.")
