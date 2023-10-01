@@ -1,0 +1,112 @@
+#WIP
+
+
+
+
+
+import os
+from moviepy.editor import VideoFileClip
+from tqdm import tqdm
+import re
+
+
+def find_mp4_srt_pairs(directory):
+    mp4_files = [file for file in os.listdir(directory) if file.endswith(".mp4")]
+    srt_files = [file for file in os.listdir(directory) if re.search(r'\.srt| English', file)]
+
+    pairs = []
+    for mp4_file in mp4_files:
+        mp4_name = os.path.splitext(mp4_file)[0]
+        for srt_file in srt_files:
+            if re.search(fr'{re.escape(mp4_name)}|{re.escape(mp4_name + " English")}', srt_file):
+                pairs.append((os.path.join(directory, mp4_file), os.path.join(directory, srt_file)))
+
+    return pairs
+
+
+def merge_mp4_with_srt(mp4, srt):
+    video = VideoFileClip(mp4)
+    video_duration = video.duration
+
+    with open(srt, "r", encoding="utf-8") as srt_file:
+        lines = srt_file.readlines()
+
+    start_times = []
+    end_times = []
+    subtitles = []
+
+    current_sub = ""
+    for line in lines:
+        line = line.strip()
+        if "-->" in line:
+            times = line.split("-->")
+            start_time, end_time = times[0].strip(), times[1].strip()
+            start_times.append(start_time)
+            end_times.append(end_time)
+        elif line:
+            current_sub += line + "\n"
+        else:
+            subtitles.append(current_sub.strip())
+            current_sub = ""
+
+    if len(subtitles) != len(start_times) or len(subtitles) != len(end_times):
+        print(f"Eroare: Număr incompatibil de subtitrări și marcaje de timp în {srt}.")
+        return
+
+    clips = []
+
+    # Utilizați tqdm pentru a afișa bara de progres
+    progress_bar = tqdm(total=len(subtitles), desc="Procesare subtitrări", unit="sub", position=0, dynamic_ncols=False)
+    for i in range(len(subtitles)):
+        start = convert_time_to_seconds(start_times[i])
+        end = convert_time_to_seconds(end_times[i])
+        sub_clip = video.subclip(start, min(end, video_duration))
+        sub_clip = sub_clip.set_position(("center", "bottom")).set_duration(end - start)
+        sub_clip = sub_clip.set_start(start)
+        clips.append(sub_clip)
+        progress_bar.update(1)  # Actualizați bara de progres
+
+    video_with_subs = clips[0]
+    for clip in clips[1:]:
+        video_with_subs = video_with_subs.crossfadein(1)
+        video_with_subs = video_with_subs.set_duration(video_with_subs.duration + clip.duration)
+        video_with_subs = video_with_subs.crossfadeout(1)
+        video_with_subs = video_with_subs.without_audio().set_audio(video.audio)
+
+    output_name = os.path.basename(mp4)
+    video_with_subs.write_videofile(output_name, codec="libx264")
+
+    try:
+        video.close()  # Încercați să închideți obiectul video aici
+    except Exception as e:
+        print(f"Eroare la închiderea obiectului video: {e}")
+
+    # Șterge fișierul SRT după procesare
+    os.remove(srt)
+
+
+def convert_time_to_seconds(time_str):
+    parts = time_str.replace(",", ".").split(":")
+    seconds = float(parts[-1])
+    seconds += 60 * float(parts[-2])
+    seconds += 3600 * float(parts[-3])
+    return seconds
+
+
+def main():
+    directory = input("Introduceți calea către directorul cu fișierele MP4 și SRT: ")
+    pairs = find_mp4_srt_pairs(directory)
+
+    if not pairs:
+        print("Nu am găsit nicio pereche de fișiere MP4 și SRT pentru procesare.")
+        return
+
+    for mp4, srt in pairs:
+        merge_mp4_with_srt(mp4, srt)
+        print(
+            f"Perechea {os.path.basename(mp4)} și {os.path.basename(srt)} a fost combinată cu subtitrare și salvată "
+            f"cu numele {os.path.basename(mp4)}.")
+
+
+if __name__ == "__main__":
+    main()
