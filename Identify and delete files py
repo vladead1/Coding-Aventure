@@ -65,12 +65,12 @@ if __name__ == "__main__":
         for file_path in found_files:
             print(file_path)
 
-        save_to_excel_option = get_user_input("Do you want to save the list of files to an Excel file? (yes/no): ")
-        if save_to_excel_option.lower() in ('yes', 'y'):
+        save_to_excel_option = get_user_input("Do you want to save the list of files to an Excel file? (yes/no, press Enter for yes): ")
+        if save_to_excel_option.lower() in ('yes', 'y', '', ''):
             create_excel_file(found_files)
 
         delete_option = get_user_input("Do you want to delete these files? (yes/no): ")
-        if delete_option.lower() in ('yes', 'y'):
+        if delete_option.lower() in ('yes', 'y',):
             for file_path in found_files:
                 os.remove(file_path)
                 print(f"File deleted: {file_path}")
