@@ -1,0 +1,53 @@
+import os
+
+
+def get_prefix_and_mp4(filename):
+    parts = filename.split(" - ", 1)
+    if len(parts) == 2 and parts[0].isdigit():
+        return parts[0], parts[1]
+    return "altceva", filename
+
+
+def organize_files(source_folder):
+    for root, dirs, files in os.walk(source_folder):
+        file_dict = {}
+
+    for root, dirs, files in os.walk(source_folder):
+        for file in files:
+            prefix, rest = get_prefix_and_mp4(file)
+            if prefix not in file_dict:
+                file_dict[prefix] = []
+            file_dict[prefix].append(file)
+
+    for prefix, files in file_dict.items():
+        if prefix != "altceva":
+            mp4_exists = any(file.endswith(".mp4") for file in files)
+            if mp4_exists:
+                new_folder_name = f"{files[0].split('.')[0]}"
+            else:
+                new_folder_name = prefix
+
+            new_subfolder_path = os.path.join(root, new_folder_name)
+
+            if not os.path.exists(new_subfolder_path):
+                os.makedirs(new_subfolder_path)
+
+            for file in files:
+                file_source_path = os.path.join(root, file)
+                file_dest_path = os.path.join(new_subfolder_path, file)
+
+                os.rename(file_source_path, file_dest_path)
+
+    print("Files have been organized.")
+
+
+def main():
+    source_folder = r"I:\Udemy-100.Days.of.Code.The.Complete.Python.Pro.Bootcamp.for.2023"
+    print("This script will organize files within subfolders based on the specified rules.")
+    print(f"Source folder: {source_folder}")
+
+    organize_files(source_folder)
+
+
+if __name__ == "__main__":
+    main()
