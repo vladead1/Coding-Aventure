@@ -1,53 +1,67 @@
-import os
+#multiple run on the same path (source folder) leeeds to folder/folder/file structure
 
+import os
+from tqdm import tqdm
 
 def get_prefix_and_mp4(filename):
     parts = filename.split(" - ", 1)
     if len(parts) == 2 and parts[0].isdigit():
         return parts[0], parts[1]
-    return "altceva", filename
+    return 'something', filename
 
+def organize_files(source_folder, min_files_per_prefix=2):
+    organized_folders = set()  # Set pentru a urmări subfolderele organizate
 
-def organize_files(source_folder):
     for root, dirs, files in os.walk(source_folder):
         file_dict = {}
 
-    for root, dirs, files in os.walk(source_folder):
-        for file in files:
-            prefix, rest = get_prefix_and_mp4(file)
-            if prefix not in file_dict:
-                file_dict[prefix] = []
-            file_dict[prefix].append(file)
-
-    for prefix, files in file_dict.items():
-        if prefix != "altceva":
-            mp4_exists = any(file.endswith(".mp4") for file in files)
-            if mp4_exists:
-                new_folder_name = f"{files[0].split('.')[0]}"
-            else:
-                new_folder_name = prefix
-
-            new_subfolder_path = os.path.join(root, new_folder_name)
-
-            if not os.path.exists(new_subfolder_path):
-                os.makedirs(new_subfolder_path)
-
+        with tqdm(total=len(files), desc="Organizing files") as pbar:
             for file in files:
-                file_source_path = os.path.join(root, file)
-                file_dest_path = os.path.join(new_subfolder_path, file)
+                prefix, rest = get_prefix_and_mp4(file)
+                if prefix not in file_dict:
+                    file_dict[prefix] = []
+                file_dict[prefix].append(file)
 
-                os.rename(file_source_path, file_dest_path)
+                pbar.update(1)
+
+        for prefix, files in file_dict.items():
+            if prefix != "something" and len(files) >= min_files_per_prefix:
+                mp4_exists = any(file.endswith(".mp4") for file in files)
+                if mp4_exists:
+                    new_folder_name = f"{files[0].split('.')[0]}"
+                else:
+                    new_folder_name = prefix
+
+                new_subfolder_path = os.path.join(root, new_folder_name)
+
+                # Verificăm dacă subfolderul a fost deja organizat și nu organizăm din nou
+                if new_subfolder_path not in organized_folders:
+                    if not os.path.exists(new_subfolder_path):
+                        os.makedirs(new_subfolder_path)
+                    else:
+                        organized_folders.add(new_subfolder_path)
+
+                    with tqdm(total=len(files), desc=f"Moving files to {new_folder_name}") as pbar:
+                        for file in files:
+                            file_source_path = os.path.join(root, file)
+                            file_dest_path = os.path.join(new_subfolder_path, file)
+
+                            if (file_source_path != file_dest_path and
+                                file_dest_path not in organized_folders and
+                                file_source_path not in organized_folders):
+                                os.rename(file_source_path, file_dest_path)
+                                pbar.update(1)
+                                organized_folders.add(file_dest_path)
 
     print("Files have been organized.")
 
-
 def main():
-    source_folder = r"I:\Udemy-100.Days.of.Code.The.Complete.Python.Pro.Bootcamp.for.2023"
+    source_folder = input("Enter the source folder path: ")
+    min_files_per_prefix = int(input("Enter the minimum number of files per prefix: "))
     print("This script will organize files within subfolders based on the specified rules.")
     print(f"Source folder: {source_folder}")
 
-    organize_files(source_folder)
-
+    organize_files(source_folder, min_files_per_prefix)
 
 if __name__ == "__main__":
     main()
